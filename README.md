@@ -1,4 +1,2 @@
 # Projet-Apprentissage-machine
-Code pour le projet Apprentissage machine
-testeta est le code pour la descente du gradient avec un neurone
-testvrai est le code pour pour la descente du gradient avec un reseau a plusieurs couches
+Reseau.py fichier qui contient les fonction pour initialiser et entrainer le reseau de neurones.
