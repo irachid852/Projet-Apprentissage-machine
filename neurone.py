@@ -74,32 +74,32 @@ def passe_avant(dico, entree):
         Vecteur contenant les différentes entrées
     Returns
     -------
-    activations : List
+    val_x : List
         Liste des différentes sorties par couche passées par la fonction d'activation
-    z_values : List
+    val_z : List
         Liste des différentes sorties par couche
     '''
-    activations = [entree]
-    z_values = []
+    val_x = [entree]
+    val_z = []
     
     for l in range(1, 4):
         W, b = Wl(l, dico)
-        z = np.dot(W, activations[-1]) + b
-        z_values.append(z)
+        z = np.dot(W, val_x[-1]) + b
+        val_z.append(z)
         a = activation(z)
-        activations.append(a)
+        val_x.append(a)
     
-    return activations, z_values
+    return val_x, val_z
 
-def retropropagation(dico, activations, z_values, sortie):
+def retropropagation(dico, val_x, val_z, sortie):
     '''
     Parameters
     ----------
     dico : Dict
         Dictionnaire des poids par neurone par couche
-    activations : List
+    val_x : List
         Liste des différentes sorties par couche passées par la fonction d'activation
-    z_values : List
+    val_z : List
         Liste des différentes sorties par couche
     sortie : Array
         Vecteur des différentes sorties attendues
@@ -113,24 +113,24 @@ def retropropagation(dico, activations, z_values, sortie):
     L = len(dico)
     
     #Calcul de l'erreur à la dernière couche
-    derniere_erreur = (activations[-1] - sortie)
-    deltas[f"couche {L}"] = derniere_erreur * dactivation(z_values[-1])
+    derniere_erreur = (val_x[-1] - sortie)
+    deltas[f"couche {L}"] = derniere_erreur * dactivation(val_z[-1])
     
     #Application de la rétro-propagation
     for l in range(L-1, 0, -1):
         W, _ = Wl(l+1, dico)
-        dz = np.dot(W.T, deltas[f"couche {l+1}"]) * dactivation(z_values[l-1])
+        dz = np.dot(W.T, deltas[f"couche {l+1}"]) * dactivation(val_z[l-1])
         deltas[f"couche {l}"] = dz
         
     return deltas
 
-def gradient(dico, activations, deltas):
+def gradient(dico, val_x, deltas):
     '''
     Parameters
     ----------
     dico : Dict
         Dictionnaire des poids par neurone par couche
-    activations : List
+    val_x : List
         Liste des différentes sorties par couche passées par la fonction d'activation
     deltas : Dict
         Dictionnaire des deltas par couche
@@ -144,7 +144,7 @@ def gradient(dico, activations, deltas):
         couche = f"couche {l}"
         for i, neurone in enumerate(dico[couche]):
             #Dérivée par rapport au poids
-            gradients[couche][neurone][:-1] = deltas[couche][i] * activations[l-1]
+            gradients[couche][neurone][:-1] = deltas[couche][i] * val_x[l-1]
             #Dérivée par rapport au biais
             gradients[couche][neurone][-1] = deltas[couche][i]
                 
@@ -164,16 +164,14 @@ def update(dico,gradients,eta):
     -------
     Le nouveau dictionnaire des poids par neurone par couche avec les poids mis à jour
     '''
-
-def update(dico, gradients, eta):
-    # Update weights and biases using gradients
+    
     dicos = deepcopy(dico)
     for couche in dico:
         for neurone in dico[couche]:
             dicos[couche][neurone] -= eta * gradients[couche][neurone]
     return dicos
 
-def train(dico, entrees, sorties, epochs, eta, ep):
+def entrainement_gd(dico, entrees, sorties, epoques, eta, ep):
     '''
     Parameters
     ----------
@@ -183,99 +181,7 @@ def train(dico, entrees, sorties, epochs, eta, ep):
         Lot de plusieurs entrées de test
     sorties : Array
         Lot de plusieurs sorties de test
-    epochs : Int
-        Nombre d'époque maximal
-    eta : Float
-        Facteur devant le gradient
-    ep : Float
-        Critère d'arrêt
-    Returns
-    -------
-    dico : Dict
-        Dictionnaire des poids par neurone par couche après entrainement
-    history : List
-        Liste des différents J qu'on a pu avoir par époque
-    '''
-    history = []
-    et = eta
-    for epoch in range(epochs):
-        erreurs = []
-        gradients_sum = deepcopy(dico)
-        for couche in gradients_sum:
-            for neurone in gradients_sum[couche]:
-                gradients_sum[couche][neurone] = np.zeros_like(gradients_sum[couche][neurone])
-        for i in range(len(entrees)):
-            entree = entrees[i]
-            sortie = np.array([sorties[i]])
-            
-            # Passe avant
-            activations, z_values = passe_avant(dico, entree)
-            
-            # Calcul de l'erreur
-            erreur = ((activations[-1] - sortie) ** 2) / 2
-            erreurs.append(erreur[0])
-            
-            # Rétro-propagation
-            deltas = retropropagation(dico, activations, z_values, sortie)
-            
-            # Update des poids
-            gradients = gradient(dico, activations, deltas)
-            for couche in gradients_sum:
-                for neurone in gradients_sum[couche]:
-                    gradients_sum[couche][neurone] += gradients[couche][neurone]/(len(entrees))
-        aerreurs = []
-        for i in range(len(entrees)):
-            entree = entrees[i]
-            sortie = np.array([sorties[i]])
-            activations, _ = passe_avant(dico, entree)
-            erreur = ((activations[-1] - sortie) ** 2) / 2
-            aerreurs.append(erreur[0])
-        
-        acout = np.sum(aerreurs) / len(entrees)
-        etat = et*10**4
-        while etat>=10**-20:
-            dicos = deepcopy(dico)
-            dicos = update(dico, gradients_sum,etat)
-            terreurs = []
-            for i in range(len(entrees)):
-                entree = entrees[i]
-                sortie = np.array([sorties[i]])
-                activations, _ = passe_avant(dicos, entree)
-                erreur = ((activations[-1] - sortie) ** 2) / 2
-                terreurs.append(erreur[0])
-            tcout = np.sum(terreurs) / len(entrees)
-            print(dicos==dicod)
-            if tcout<=acout: 
-                et = etat
-                break
-            else: etat = etat/2
-        dico = update(dico, gradients_sum, et)
-            
-        moy_erreur = np.mean(erreurs)
-        history.append(moy_erreur)
-        
-        # Critère d'arrêt
-        if moy_erreur < ep:
-            print(f"On arrête par critère d'arrêt à l'époque : {epoch+1} avec une erreur de : {moy_erreur:.6f}")
-            break
-            
-        if (epoch + 1) % 100 == 0:
-            pass
-    print(f"On arrète à l'époque : {epoch+1} sans critère d'arrêt avec une erreur de : {moy_erreur:.6f}")
-    return dico, history
-
-
-def train_egd(dico, entrees, sorties, epochs, eta, ep):
-    '''
-    Parameters
-    ----------
-    dico : Dict
-        Dictionnaire des poids par neurone par couche
-    entrees : Array
-        Lot de plusieurs entrées de test
-    sorties : Array
-        Lot de plusieurs sorties de test
-    epochs : Int
+    epoques : Int
         Nombre d'époque maximal
     eta : Float
         Facteur devant le gradient
@@ -290,48 +196,116 @@ def train_egd(dico, entrees, sorties, epochs, eta, ep):
     '''
     history = []
     etat = eta
-    for epoch in range(epochs):
+    for epoque in range(epoques):
         erreurs = []
-        gradients_sum = deepcopy(dico)
-        for couche in gradients_sum:
-            for neurone in gradients_sum[couche]:
-                gradients_sum[couche][neurone] = np.zeros_like(gradients_sum[couche][neurone])
+        gradients_somme = deepcopy(dico)
+        for couche in gradients_somme:
+            for neurone in gradients_somme[couche]:
+                gradients_somme[couche][neurone] = np.zeros_like(gradients_somme[couche][neurone])
         for i in range(len(entrees)):
             entree = entrees[i]
             sortie = np.array([sorties[i]])
             
             # Passe avant
-            activations, z_values = passe_avant(dico, entree)
+            val_x, val_z = passe_avant(dico, entree)
             
             # Calcul de l'ereur
-            erreur = ((activations[-1] - sortie) ** 2) / 2
+            erreur = ((val_x[-1] - sortie) ** 2) / 2
             erreurs.append(erreur[0])
             
             # Retro-propagation
-            deltas = retropropagation(dico, activations, z_values, sortie)
+            deltas = retropropagation(dico, val_x, val_z, sortie)
             
             # Update des poids
             
-            gradients = gradient(dico, activations, deltas)
-            for couche in gradients_sum:
-                for neurone in gradients_sum[couche]:
-                    gradients_sum[couche][neurone] += gradients[couche][neurone]/(len(entrees))
+            gradients = gradient(dico, val_x, deltas)
+            for couche in gradients_somme:
+                for neurone in gradients_somme[couche]:
+                    gradients_somme[couche][neurone] += gradients[couche][neurone]/(len(entrees))
+            
+        moy_erreur = np.mean(erreurs)
+        dico = update(dico, gradients_somme, eta)
+        
+        history.append(moy_erreur)
+        
+        # Critère d'arrêt
+        if moy_erreur < ep:
+            print(f"On arrête par critère d'arrêt à l'époque : {epoque+1} avec une erreur de : {moy_erreur:.6f}")
+            
+            break
+            
+        if (epoque + 1) % 100 == 0:
+            print(f"Epoque {epoque}/{epoques}")
+    return dico, history
+
+
+def entrainement_egd(dico, entrees, sorties, epoques, eta, ep):
+    '''
+    Parameters
+    ----------
+    dico : Dict
+        Dictionnaire des poids par neurone par couche
+    entrees : Array
+        Lot de plusieurs entrées de test
+    sorties : Array
+        Lot de plusieurs sorties de test
+    epoques : Int
+        Nombre d'époque maximal
+    eta : Float
+        Facteur devant le gradient
+    ep : Float
+        Critère d'arrêt
+    Returns
+    -------
+    dico : Dict
+        Dictionnaire des poids par neurone par couche après entrainement avec la méthode EGD
+    history : List
+        Liste des différents J qu'on a pu avoir par époque
+    '''
+    history = []
+    etat = eta
+    for epoque in range(epoques):
+        erreurs = []
+        gradients_somme = deepcopy(dico)
+        for couche in gradients_somme:
+            for neurone in gradients_somme[couche]:
+                gradients_somme[couche][neurone] = np.zeros_like(gradients_somme[couche][neurone])
+        for i in range(len(entrees)):
+            entree = entrees[i]
+            sortie = np.array([sorties[i]])
+            
+            # Passe avant
+            val_x, val_z = passe_avant(dico, entree)
+            
+            # Calcul de l'ereur
+            erreur = ((val_x[-1] - sortie) ** 2) / 2
+            erreurs.append(erreur[0])
+            
+            # Retro-propagation
+            deltas = retropropagation(dico, val_x, val_z, sortie)
+            
+            # Update des poids
+            
+            gradients = gradient(dico, val_x, deltas)
+            for couche in gradients_somme:
+                for neurone in gradients_somme[couche]:
+                    gradients_somme[couche][neurone] += gradients[couche][neurone]/(len(entrees))
             
         moy_erreur = np.mean(erreurs)
         trouve = False
         et = etat*10**3
         while trouve == False and et>10**-30:
-            dicos = update(dico, gradients_sum, et)
+            dicos = update(dico, gradients_somme, et)
             erreurst = []
             for i in range(len(entrees)):
                 entree = entrees[i]
                 sortie = np.array([sorties[i]])
-                activationst, z_values = passe_avant(dicos, entree)
-                erreur = ((activationst[-1] - sortie) ** 2) / 2
+                val_xt, val_z = passe_avant(dicos, entree)
+                erreur = ((val_xt[-1] - sortie) ** 2) / 2
                 erreurst.append(erreur[0])
             moy_erreurt = np.mean(erreurst)
             if moy_erreurt< moy_erreur:
-                dico = update(dico, gradients_sum, et)
+                dico = update(dico, gradients_somme, et)
                 etat = et
                 trouve = True
             else: 
@@ -341,11 +315,11 @@ def train_egd(dico, entrees, sorties, epochs, eta, ep):
         
         # Critère d'arrêt
         if moy_erreur < ep:
-            print(f"On arrête par critère d'arrêt à l'époque : {epoch+1} avec une erreur de : {moy_erreur:.6f}")
+            print(f"On arrête par critère d'arrêt à l'époque : {epoque+1} avec une erreur de : {moy_erreur:.6f}")
             
             break
             
-        if (epoch + 1) % 100 == 0:
+        if (epoque + 1) % 100 == 0:
             pass
     
     return dico, history
@@ -363,7 +337,7 @@ sortiest = np.loadtxt("sonar_outputs_test.csv", delimiter=",")
 lstt = []
 lstx = []
 
-for trial in range(0,200):
+for essai in range(0,200):
     mat = [matrice_aleatoire(60, 30),matrice_aleatoire(30, 30),matrice_aleatoire(30, 1)]
     dicod = {
         "couche 1": {f"neurone {i+1}": np.append(mat[0][i], 0) for i in range(len(mat[0]))},
@@ -371,9 +345,9 @@ for trial in range(0,200):
         "couche 3": {f"neurone {i+1}": np.append(mat[2][i], 0) for i in range(len(mat[2]))}
     }
     
-    print(f"\nTrial {trial+1}/20")
-    lstx.append(trial)
+    print(f"\nessai {essai+1}/20")
+    lstx.append(essai)
     
     # Nouvelle initialisation aléatoire
     dico = deepcopy(dicod)    
-    trained_dico, history = train_egd(dico, entrees, sorties, epochs=900, eta=10, ep=1e-8)
+    trained_dico, history = entrainement_egd(dico, entrees, sorties, epoques=900, eta=10, ep=1e-8)
